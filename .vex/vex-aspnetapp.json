@@ -1,0 +1,23 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/public/vex-48ac27be99fd5941bf0c6337a0d9831b182cd7ea5225f0a648cfbda93cb7c063",
+  "author": "cd@docker.com",
+  "timestamp": "2024-05-28T17:27:52.813027+02:00",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2024-32655"
+      },
+      "timestamp": "2024-05-28T17:27:52.813028+02:00",
+      "products": [
+        {
+          "@id": "pkg:nuget/Npgsql@8.0.1.0"
+        }
+      ],
+      "status": "not_affected",
+      "status_notes": "Not exploitable",
+      "justification": "inline_mitigations_already_exist"
+    }
+  ]
+}
