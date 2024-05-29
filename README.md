@@ -1,5 +1,169 @@
 # ASP.NET Core Docker Sample
 
+This repository can be used to demo Docker Scout with an ASP.NET Core application.
+
+## Build the image
+
+Note: Enable containerd in your DD to make attestations work.
+
+```shell
+$ docker buildx b . -f Dockerfile.alpine \
+  -t christiandupuis299/aspnetapp:main \
+  --attest type=sbom,generator=docker/scout-sbom-indexer:1 \
+  --provenance=1 --load --no-cache --platform linux/amd64,linux/arm64
+```
+
+## CVEs
+
+This sample has been modified from original to include some .NET Core specific vulnerabilties:
+
+```shell
+$ docker scout cves christiandupuis299/aspnetapp:main --only-package-type nuget
+    ✓ SBOM obtained from attestation, 335 packages found
+    ✓ Provenance obtained from attestation
+    ✗ Detected 2 vulnerable packages with a total of 4 vulnerabilities
+
+
+## Overview
+
+                    │                Analyzed Image
+────────────────────┼───────────────────────────────────────────────
+  Target            │  christiandupuis299/aspnetapp:main
+    digest          │  ac768bd0366f
+    platform        │ linux/arm64
+    provenance      │ ssh://github.com/dotnet/dotnet-docker
+                    │  7d4d56941607d8521d500be152d66bb7d9e3dbf0
+    vulnerabilities │    0C     1H     3M     0L
+    size            │ 55 MB
+    packages        │ 313
+                    │
+  Base image        │  mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+                    │  25b1e6815f4f
+
+
+## Packages and Vulnerabilities
+
+   0C     1H     0M     0L  Npgsql 8.0.1.0
+pkg:nuget/Npgsql@8.0.1.0
+
+Dockerfile.alpine (22:22)
+COPY --from=build /app .
+
+    ✗ HIGH CVE-2024-32655 [Integer Overflow or Wraparound]
+      https://scout.docker.com/v/CVE-2024-32655
+      Affected range  : >=8.0.0
+                      : <8.0.3
+      Fixed version   : 8.0.3
+      CVSS Score      : 8.1
+      CVSS Vector     : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H
+      EPSS Score      : 0.05%
+      EPSS Percentile : 17th percentile
+
+
+   0C     0H     3M     0L  BouncyCastle.Cryptography 2.3.0.53016
+pkg:nuget/BouncyCastle.Cryptography@2.3.0.53016
+
+Dockerfile.alpine (22:22)
+COPY --from=build /app .
+
+    ✗ MEDIUM CVE-2024-30171 [Observable Discrepancy]
+      https://scout.docker.com/v/CVE-2024-30171
+      Affected range : <2.3.1
+      Fixed version  : 2.3.1
+      CVSS Score     : 5.9
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N
+
+    ✗ MEDIUM CVE-2024-30172 [Loop with Unreachable Exit Condition ('Infinite Loop')]
+      https://scout.docker.com/v/CVE-2024-30172
+      Affected range : <2.3.1
+      Fixed version  : 2.3.1
+      CVSS Score     : 5.3
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L
+
+    ✗ MEDIUM CVE-2024-29857 [Uncontrolled Resource Consumption]
+      https://scout.docker.com/v/CVE-2024-29857
+      Affected range : <2.3.1
+      Fixed version  : 2.3.1
+      CVSS Score     : 5.3
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L
+
+
+
+4 vulnerabilities found in 2 packages
+  LOW       0
+  MEDIUM    3
+  HIGH      1
+  CRITICAL  0
+
+```
+
+## Policy
+
+With containerd enabled, local policy evaluation will work and yield some interesting results:
+
+```
+docker scout policy christiandupuis299/aspnetapp:main
+    ✓ SBOM obtained from attestation, 335 packages found
+    ✓ Provenance obtained from attestation
+    ✓ Policy evaluation completed
+
+
+## Overview
+
+             │           Analyzed Image
+─────────────┼──────────────────────────────────────
+  Target     │  christiandupuis299/aspnetapp:main
+    digest   │  64f44fb1d7d4
+    platform │ linux/arm64
+
+
+## Policies
+
+Policy status  FAILED  (6/9 policies met)
+
+  Status │                     Policy                      │           Results
+─────────┼─────────────────────────────────────────────────┼──────────────────────────────
+  ✓      │ Copyleft licenses                               │    0 packages
+  !      │ Default non-root user                           │
+  !      │ Fixable critical and high CVEs (Production SLA) │    4 deviations
+  ✓      │ Fixable critical and high vulnerabilities       │    0C     0H     0M     0L
+  ✓      │ High-profile vulnerabilities                    │    0C     0H     0M     0L
+  ✓      │ No embedded secrets                             │    0 deviations
+  ✓      │ Outdated base images                            │
+  ✓      │ Supply chain attestations                       │    0 deviations
+  !      │ Unapproved base images                          │    1 deviation
+
+
+## "Default non-root user" policy evaluation results
+Ensures the image specifies a non-root username (or UID) for the final stage.
+
+  User │ Explicit
+───────┼───────────
+  root │ false
+
+
+## "Fixable critical and high CVEs (Production SLA)" policy evaluation results
+This policy checks for fixable critical and high CVEs
+
+                                Purl                               │ Vulnerability  │  Fixed by  │ Severity │ Score │     Epss
+───────────────────────────────────────────────────────────────────┼────────────────┼────────────┼──────────┼───────┼───────────────
+  pkg:apk/alpine/busybox@1.36.1-r15?os_name=alpine&os_version=3.19 │ CVE-2023-42366 │ 1.36.1-r16 │ MEDIUM   │ 5.50  │ 0.04% (0.12)
+  pkg:apk/alpine/busybox@1.36.1-r15?os_name=alpine&os_version=3.19 │ CVE-2023-42363 │ 1.36.1-r17 │ MEDIUM   │ 5.50  │ 0.04% (0.12)
+  pkg:apk/alpine/busybox@1.36.1-r15?os_name=alpine&os_version=3.19 │ CVE-2023-42364 │ 1.36.1-r17 │ MEDIUM   │ 5.50  │ 0.04% (0.12)
+  pkg:apk/alpine/busybox@1.36.1-r15?os_name=alpine&os_version=3.19 │ CVE-2023-42365 │ 1.36.1-r17 │ MEDIUM   │ 5.50  │ 0.04% (0.12)
+
+
+## "Unapproved base images" policy evaluation results
+Base images must be from approved sources.
+
+                  Base image                 │                   Reason
+─────────────────────────────────────────────┼──────────────────────────────────────────────
+  mcr.microsoft.com/dotnet/aspnet:8.0-alpine │ Does not match any approved glob expression
+
+```
+
+--- 
+
 This sample demonstrates how to build container images for ASP.NET Core web apps. See [.NET Docker Samples](../README.md) for more samples.
 
 > Note: .NET 8 container images use port `8080`, by default. Previous .NET versions used port `80`. The instructions for the sample assume the use of port `8080`.
